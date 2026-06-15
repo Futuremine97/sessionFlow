@@ -1,0 +1,20 @@
+{
+  "name": "sunghoon-marketplace",
+  "displayName": "sunghoon's Cowork Marketplace",
+  "description": "Plugins for transferring AI session context across assistants and models.",
+  "version": "0.3.0",
+  "author": { "name": "sunghoon" },
+  "plugins": [
+    {
+      "name": "session-to-session",
+      "displayName": "Session to Session",
+      "description": "Cross-vendor AI session handoff: capture a conversation's decisions, open threads, preferences and artifacts into a neutral capsule, then generate a target-tuned primer for Claude / ChatGPT / Gemini.",
+      "version": "0.3.0",
+      "author": { "name": "sunghoon" },
+      "source": "./",
+      "category": "productivity",
+      "tags": ["handoff", "context", "memory", "session"],
+      "license": "MIT"
+    }
+  ]
+}

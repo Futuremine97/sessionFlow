@@ -1,0 +1,9 @@
+{
+  "title": "Mobile app onboarding",
+  "model": "gemini-1.5-pro",
+  "contents": [
+    {"role": "user", "parts": [{"text": "Help me design the onboarding flow for our mobile app. I want a 3-screen flow. The app is built with Flutter. I prefer minimal copy."}]},
+    {"role": "model", "parts": [{"text": "Let's go with a 3-screen carousel: value prop, permissions, sign-in. We decided to use Firebase Auth. Here's the screen spec in onboarding/spec.md. Next step: we still need to define the permissions copy and add an analytics event per screen."}]},
+    {"role": "user", "parts": [{"text": "Great. TODO: localize all strings to Korean and English. Please always keep the copy under 12 words. Codename is Sprout."}]}
+  ]
+}

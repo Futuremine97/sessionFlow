@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "session_to_session — AI handoff",
+  "version": "0.2.0",
+  "description": "Capture the current ChatGPT / Claude / Gemini conversation and hand it off to another AI session.",
+  "permissions": ["activeTab", "scripting", "clipboardWrite"],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://claude.ai/*",
+    "https://gemini.google.com/*"
+  ],
+  "action": {
+    "default_title": "session_to_session",
+    "default_popup": "popup.html"
+  },
+  "icons": { "128": "icon128.png" }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "session-to-session",
+  "version": "0.3.0",
+  "description": "Transfer AI session context between sessions — same AI or different AI, same model or different model. Cross-vendor handoff for Claude / ChatGPT / Gemini.",
+  "keywords": [
+    "ai",
+    "llm",
+    "chatgpt",
+    "claude",
+    "gemini",
+    "context",
+    "handoff",
+    "session",
+    "memory",
+    "cli"
+  ],
+  "license": "MIT",
+  "author": "sunghoon",
+  "type": "commonjs",
+  "main": "src/index.js",
+  "bin": {
+    "s2s": "bin/s2s.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "openapi.yaml",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node test/test.js",
+    "serve": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

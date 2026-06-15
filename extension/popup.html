@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font: 13px/1.4 -apple-system, system-ui, sans-serif; width: 320px; margin: 0; padding: 14px; color: #1d1d1f; }
+    h1 { font-size: 14px; margin: 0 0 10px; }
+    .row { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+    label { font-size: 12px; color: #555; }
+    select, button { font-size: 13px; padding: 6px 8px; border-radius: 6px; border: 1px solid #ccc; background: #fff; }
+    button { cursor: pointer; }
+    button.primary { background: #1d1d1f; color: #fff; border-color: #1d1d1f; }
+    button:disabled { opacity: .5; cursor: default; }
+    #status { font-size: 12px; color: #007a3d; min-height: 16px; margin-top: 6px; }
+    #status.err { color: #c00; }
+    .muted { color: #888; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <h1>session_to_session</h1>
+  <div class="row">
+    <label>Hand off to</label>
+    <select id="target">
+      <option value="claude">Claude</option>
+      <option value="chatgpt">ChatGPT</option>
+      <option value="gemini">Gemini</option>
+      <option value="generic">Generic</option>
+    </select>
+  </div>
+  <div class="row">
+    <input type="checkbox" id="full" />
+    <label for="full">Include full transcript</label>
+  </div>
+  <div class="row">
+    <button id="capture" class="primary">Capture this chat</button>
+  </div>
+  <div class="row">
+    <button id="copy" disabled>Copy primer</button>
+    <button id="download" disabled>Download capsule</button>
+  </div>
+  <div id="status"></div>
+  <div class="muted">Capture reads the current ChatGPT/Claude/Gemini tab, compresses it, and builds a primer to paste into your next session.</div>
+
+  <script src="s2s.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

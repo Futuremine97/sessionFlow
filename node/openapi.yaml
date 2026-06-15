@@ -1,0 +1,104 @@
+openapi: 3.1.0
+info:
+  title: session_to_session API
+  description: >-
+    Transfer AI session context between sessions. Converts a pasted
+    conversation (or vendor export) into a compressed, platform-neutral
+    "Session Capsule" and a ready-to-paste handoff primer tuned for a target
+    AI (Claude / ChatGPT / Gemini). Secrets and PII are masked by default.
+  version: 0.3.0
+servers:
+  - url: https://YOUR-DEPLOYMENT-HOST.example.com
+    description: Replace with your deployed s2s server (see node/README.md "serve")
+paths:
+  /transfer:
+    post:
+      operationId: transferSession
+      summary: Convert a conversation into a handoff primer for a target AI.
+      description: >-
+        Takes raw conversation text and returns a primer the user can paste as
+        the first message of a new AI session, plus the intermediate capsule.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  description: The conversation to transfer (pasted text or a vendor export JSON).
+                from:
+                  type: string
+                  description: Source platform; omit to auto-detect.
+                  enum: [claude, chatgpt, gemini, paste]
+                to:
+                  type: string
+                  description: Target platform to tune the primer for.
+                  enum: [claude, chatgpt, gemini, generic]
+                  default: generic
+                full:
+                  type: boolean
+                  description: Append the verbatim full transcript to the primer.
+                  default: false
+                mask:
+                  type: boolean
+                  description: Redact secrets/PII before returning. Strongly recommended.
+                  default: true
+      responses:
+        '200':
+          description: The handoff primer and capsule.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  primer:
+                    type: string
+                    description: The text to paste into the new AI session.
+                  capsule:
+                    type: object
+                    description: The platform-neutral Session Capsule.
+        '400':
+          description: Bad request (missing or invalid text).
+  /capsule:
+    post:
+      operationId: buildCapsule
+      summary: Normalize + compress a conversation into a Session Capsule (no primer).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string }
+                from:
+                  type: string
+                  enum: [claude, chatgpt, gemini, paste]
+                mask: { type: boolean, default: true }
+      responses:
+        '200':
+          description: The capsule.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  capsule: { type: object }
+  /health:
+    get:
+      operationId: health
+      summary: Liveness check.
+      responses:
+        '200':
+          description: OK
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+security:
+  - bearerAuth: []

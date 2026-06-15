@@ -1,0 +1,11 @@
+{
+  "name": "session-to-session",
+  "displayName": "Session to Session",
+  "version": "0.3.0",
+  "description": "Transfer AI session context between sessions — same AI or different AI, same model or different model. Cross-vendor handoff (Claude / ChatGPT / Gemini) via a platform-neutral Session Capsule.",
+  "author": { "name": "sunghoon" },
+  "license": "MIT",
+  "keywords": ["ai", "handoff", "context", "session", "memory", "chatgpt", "claude", "gemini"],
+  "skills": "skills/",
+  "commands": "commands/"
+}

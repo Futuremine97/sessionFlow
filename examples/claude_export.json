@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Design data pipeline",
+    "updated_at": "2026-06-10T12:00:00Z",
+    "model": "claude-opus-4-8",
+    "chat_messages": [
+      {"sender": "human", "created_at": "2026-06-10T12:00:01Z",
+       "text": "I want to design a data pipeline. I prefer Airflow over cron. The pipeline is built with Python and runs on AWS."},
+      {"sender": "assistant", "created_at": "2026-06-10T12:00:05Z",
+       "text": "Let's use Airflow with the TaskFlow API. We'll go with S3 for staging. Here's a starter DAG:\n\n```python\n# dags/etl.py\n@dag(schedule='@daily')\ndef etl():\n    ...\n```\nNext step: still need to define the transformation layer and add data quality checks."},
+      {"sender": "human", "created_at": "2026-06-10T12:01:00Z",
+       "text": "Sounds good. TODO: wire up Great Expectations for validation. Please never hardcode credentials. Project name is Atlas."}
+    ]
+  }
+]

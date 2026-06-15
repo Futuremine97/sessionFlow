@@ -1,0 +1,42 @@
+[
+  {
+    "title": "Refactor billing service",
+    "update_time": 1718200000,
+    "mapping": {
+      "root": {"id": "root", "message": null, "parent": null, "children": ["a"]},
+      "a": {
+        "id": "a", "parent": "root", "children": ["b"],
+        "message": {
+          "author": {"role": "system"},
+          "create_time": 1718200001,
+          "content": {"content_type": "text", "parts": ["You are a senior backend engineer."]},
+          "metadata": {"model_slug": "gpt-4o"}
+        }
+      },
+      "b": {
+        "id": "b", "parent": "a", "children": ["c"],
+        "message": {
+          "author": {"role": "user"},
+          "create_time": 1718200002,
+          "content": {"content_type": "text", "parts": ["I'm a Python developer. I prefer concise code with type hints. Help me refactor our billing service in billing/service.py. We decided to use Stripe for payments."]}
+        }
+      },
+      "c": {
+        "id": "c", "parent": "b", "children": ["d"],
+        "message": {
+          "author": {"role": "assistant"},
+          "create_time": 1718200003,
+          "content": {"content_type": "text", "parts": ["Great. The billing service is written in Python and uses FastAPI. Let's go with a repository pattern. Here is a first pass:\n\n```python\n# billing/service.py\nclass BillingService:\n    def charge(self, amount: int) -> bool:\n        ...\n```\nNext step: we still need to add webhook handling and retry logic."]}
+        }
+      },
+      "d": {
+        "id": "d", "parent": "c", "children": [],
+        "message": {
+          "author": {"role": "user"},
+          "create_time": 1718200004,
+          "content": {"content_type": "text", "parts": ["Perfect. TODO: add idempotency keys. Please always include error handling. The project codename is Helios."]}
+        }
+      }
+    }
+  }
+]
