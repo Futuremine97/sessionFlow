@@ -35,6 +35,7 @@ function newCapsule(fields = {}) {
     transcript: fields.transcript || [], // [{role, content, timestamp?, name?}]
     context: fields.context || emptyContext(),
     artifacts: fields.artifacts || [], // [{path, kind, status, summary?, language?}]
+    attachments: fields.attachments || [], // [{name, mime, kind, sha256, meta, ...}]
     include_full_transcript: fields.include_full_transcript || false,
     revision: fields.revision || 1,
     content_hash: fields.content_hash || null,
@@ -49,6 +50,7 @@ function hashCapsule(cap) {
     transcript: cap.transcript,
     context: cap.context,
     artifacts: cap.artifacts,
+    attachments: cap.attachments,
   });
   return crypto.createHash('sha256').update(basis).digest('hex').slice(0, 16);
 }
@@ -71,6 +73,7 @@ function toJSON(cap, indent = 2) {
     content_hash: cap.content_hash || hashCapsule(cap),
     context: cap.context,
     artifacts: cap.artifacts,
+    attachments: cap.attachments,
     include_full_transcript: cap.include_full_transcript,
     transcript: cap.include_full_transcript ? cap.transcript : [],
     transcript_turn_count: cap.transcript.length,
@@ -90,6 +93,7 @@ function fromJSON(text) {
     transcript: d.transcript || [],
     context: Object.assign(emptyContext(), d.context || {}),
     artifacts: d.artifacts || [],
+    attachments: d.attachments || [],
     include_full_transcript: d.include_full_transcript || false,
     revision: d.revision || 1,
     content_hash: d.content_hash || null,

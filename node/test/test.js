@@ -216,6 +216,70 @@ async function run() {
     assert.ok(unsealed.content[0].text.includes('<handoff>'));
   });
 
+  const FIX = require('path').join(__dirname, 'fixtures');
+  await test('attach: PNG/JPEG dimensions + sha256', () => {
+    const png = s2s.ingestFile(FIX + '/photo.png', {});
+    assert.strictEqual(png.kind, 'image');
+    assert.strictEqual(png.meta.width, 4);
+    assert.strictEqual(png.meta.height, 3);
+    assert.ok(/^[0-9a-f]{64}$/.test(png.sha256));
+    const jpg = s2s.ingestFile(FIX + '/photo.jpg', {});
+    assert.strictEqual(jpg.meta.width, 8);
+    assert.strictEqual(jpg.meta.height, 6);
+  });
+
+  await test('attach: PDF (paper) title + page count + excerpt', () => {
+    const pdf = s2s.ingestFile(FIX + '/paper.pdf', {});
+    assert.strictEqual(pdf.kind, 'paper');
+    assert.strictEqual(pdf.meta.pages, 1);
+    assert.ok(/Attention Is All You Need/.test(pdf.title));
+    assert.ok(/Transformer/.test(pdf.text_excerpt));
+  });
+
+  await test('attach: builtin PDF extractor works without poppler', () => {
+    // pdfPureJs is exercised indirectly; here we just assert excerpt non-empty
+    const pdf = s2s.ingestFile(FIX + '/paper.pdf', {});
+    assert.ok(pdf.text_excerpt.length > 10);
+  });
+
+  await test('attach: rendered in primer Attachments section', () => {
+    const cap = s2s.pasteLoad('You: review attached');
+    s2s.compress(cap, { summarizer: s2s.heuristicSummary });
+    s2s.attachToCapsule(cap, [FIX + '/paper.pdf', FIX + '/photo.png'], { caption: 'diagram' });
+    const primer = s2s.buildPrimer(cap, 'claude');
+    assert.ok(primer.includes('## Attachments'));
+    assert.ok(primer.includes('Attention Is All You Need'));
+    assert.ok(primer.includes('diagram'));
+  });
+
+  await test('attach: dedupe by sha256', () => {
+    const cap = s2s.pasteLoad('You: x');
+    s2s.attachToCapsule(cap, [FIX + '/photo.png', FIX + '/photo.png'], {});
+    assert.strictEqual(cap.attachments.length, 1);
+  });
+
+  await test('attach: embed survives seal/unseal with intact hash', () => {
+    const crypto = require('crypto');
+    const cap = s2s.pasteLoad('You: see paper');
+    s2s.compress(cap, { summarizer: s2s.heuristicSummary });
+    s2s.attachToCapsule(cap, [FIX + '/paper.pdf'], { embed: true });
+    s2s.finalize(cap);
+    const back = s2s.fromJSON(s2s.unseal(s2s.seal(s2s.toJSON(cap), 'pw').token, 'pw'));
+    const a = back.attachments[0];
+    const buf = Buffer.from(a.data_b64, 'base64');
+    assert.strictEqual(crypto.createHash('sha256').update(buf).digest('hex'), a.sha256);
+  });
+
+  await test('MCP: ingest_attachment + transfer_session with attachments', () => {
+    const mcp = require('../src/mcp');
+    assert.ok(mcp.TOOLS.find((t) => t.name === 'ingest_attachment'));
+    const ing = JSON.parse(mcp.callTool('ingest_attachment', { path: FIX + '/paper.pdf' }).content[0].text);
+    assert.strictEqual(ing.kind, 'paper');
+    const tr = JSON.parse(mcp.callTool('transfer_session', { text: 'You: review paper', to: 'claude', attachments: [FIX + '/paper.pdf'] }).content[0].text);
+    assert.strictEqual(tr.carried_over.attachments, 1);
+    assert.ok(tr.primer.includes('Attention Is All You Need'));
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 }

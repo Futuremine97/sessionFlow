@@ -25,7 +25,8 @@ function parseFlags(argv) {
       flags.o = argv[++i]; // short alias for --output
     } else if (a.startsWith('--')) {
       const key = a.slice(2);
-      if (['full', 'offline', 'mask', 'json', 'seal', 'encode', 'boot'].includes(key)) flags[key] = true;
+      if (['full', 'offline', 'mask', 'json', 'seal', 'encode', 'boot', 'embed'].includes(key)) flags[key] = true;
+      else if (key === 'attach') (flags.attach = flags.attach || []).push(argv[++i]); // repeatable
       else flags[key] = argv[++i];
     } else pos.push(a);
   }
@@ -47,6 +48,9 @@ async function loadCompressed(text, flags) {
   } else {
     s2s.compress(cap, { summarizer: s2s.heuristicSummary });
   }
+  if (flags.attach && flags.attach.length) {
+    s2s.attachToCapsule(cap, flags.attach, { embed: !!flags.embed, caption: flags.caption });
+  }
   if (flags.mask) s2s.maskCapsule(cap);
   s2s.finalize(cap);
   return cap;
@@ -60,6 +64,7 @@ Usage:
   s2s capsule  <export>  [--from x] [--mask] [-o file]      # normalize+compress -> capsule.json
   s2s primer   <capsule> [--to y] [--full] [-o file]
   s2s merge    <a.json> <b.json> [...]  [--to y] [-o file]  # combine sessions
+  s2s attach   <capsule> <file...> [--embed] [--caption ".."] # add photos/papers
   s2s mask     <capsule> [-o file]                          # redact secrets/PII
   s2s diff     <old.json> <new.json>                        # what changed
   s2s inspect  <capsule>
@@ -78,6 +83,7 @@ Usage:
 
 Targets: claude | chatgpt | gemini | generic
 Source : claude | chatgpt | gemini | paste   (omit to auto-detect)
+Attach : --attach <file> (repeatable) [--embed] [--caption ".."] on transfer/paste/capsule
 Passphrase: --pass <phrase> | --pass-file <f> | env S2S_PASSPHRASE
 LLM summary auto-used when ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY is set.`;
 
@@ -138,6 +144,18 @@ async function main() {
     case 'bootkey': {
       const st = s2s.bootkey.status();
       process.stdout.write(JSON.stringify(st, null, 2) + '\n');
+      break;
+    }
+    case 'attach': {
+      // attach file(s) to an existing capsule.json: s2s attach capsule.json file1 file2 [--embed --caption "..."]
+      const cap = s2s.fromJSON(readInput(pos[0]));
+      const files = pos.slice(1).concat(flags.attach || []);
+      if (!files.length) throw new Error('provide one or more files to attach');
+      s2s.attachToCapsule(cap, files, { embed: !!flags.embed, caption: flags.caption });
+      s2s.finalize(cap);
+      out(s2s.toJSON(cap), flags.o);
+      const last = cap.attachments[cap.attachments.length - 1];
+      process.stderr.write(`attached ${files.length} file(s); ${cap.attachments.length} total. last: [${last.kind}] ${last.name}\n`);
       break;
     }
     case 'token-info': {

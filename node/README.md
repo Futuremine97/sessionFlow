@@ -20,6 +20,10 @@ pbpaste | s2s paste --to gemini
 # Combine several sessions into one project memory
 s2s merge a.capsule.json b.capsule.json --to claude
 
+# Include photos / papers (PDF) in the handoff
+s2s transfer chat.json --to claude --attach paper.pdf --attach figure.png
+s2s attach session.capsule.json paper.pdf --embed   # add to an existing capsule
+
 # Redact secrets / PII from a capsule
 s2s mask session.capsule.json -o safe.capsule.json
 
@@ -53,8 +57,23 @@ the JSON), is authenticated by a 128-bit GCM tag plus an embedded SHA-256 of
 the plaintext, and cannot be read or altered without the passphrase. Passphrase
 sources: `--pass`, `--pass-file`, or env `S2S_PASSPHRASE`.
 
-Commands: `transfer`, `paste`, `capsule`, `primer`, `merge`, `mask`, `diff`,
-`inspect`, `serve`, `encode`, `decode`, `seal`, `unseal`, `token-info`.
+### Attachments (photos + papers)
+
+`--attach <file>` (repeatable, on `transfer`/`paste`/`capsule`, or the `attach`
+command) catalogs each file into the capsule: type, size, SHA-256, and —
+
+- **papers / PDFs**: title, page count, and a text excerpt (uses `pdftotext`
+  if installed, else a built-in dependency-free extractor; scanned/image PDFs
+  are flagged as needing OCR),
+- **images** (PNG/JPEG/GIF/WebP): dimensions + optional `--caption`.
+
+They render as an "Attachments" section in the primer so the next AI knows the
+files and what the papers say. `--embed` base64-embeds the bytes so they travel
+inside a sealed token (with intact SHA-256).
+
+Commands: `transfer`, `paste`, `capsule`, `primer`, `merge`, `attach`, `mask`,
+`diff`, `inspect`, `serve`, `encode`, `decode`, `seal`, `unseal`, `token-info`,
+`bootkey`.
 Flags: `--from`, `--to`, `--full`, `--mask`, `--offline`, `-o <file>`,
 `--capsule <file>`.
 

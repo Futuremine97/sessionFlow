@@ -42,6 +42,16 @@
 
   > 참고: SHA-256은 해시(무결성)이고 기밀 보호는 AES-256-GCM이 담당합니다. 둘을 함께 적용해
   > "변조 탐지 + 내용 암호화"를 모두 보장합니다.
+- **첨부파일 (사진·논문)** (`attach`, `--attach`) — 핸드오프에 이미지·PDF를 포함. PDF(논문)는
+  제목·페이지수·텍스트 발췌(poppler `pdftotext` 있으면 사용, 없으면 내장 순수-JS 추출기;
+  스캔본은 OCR 필요로 표시), 이미지는 크기·타입·SHA-256(+선택 캡션) 추출. primer에
+  "Attachments" 섹션으로 전달. `--embed` 시 파일 바이트를 base64로 capsule에 넣어 sealed
+  토큰에 함께 봉인(SHA-256 무결성 유지).
+
+  ```bash
+  s2s transfer chat.json --to claude --attach paper.pdf --attach figure.png
+  s2s attach session.capsule.json paper.pdf --embed
+  ```
 
 ## 1) npm CLI
 

@@ -32,6 +32,7 @@ const TOOLS = [
         from: { type: 'string', enum: ['claude', 'chatgpt', 'gemini', 'paste'], description: 'Omit to auto-detect.' },
         full: { type: 'boolean', default: false, description: 'Append verbatim transcript.' },
         mask: { type: 'boolean', default: true, description: 'Redact secrets/PII.' },
+        attachments: { type: 'array', items: { type: 'string' }, description: 'Optional local file paths (photos/papers) to include in the handoff.' },
       },
     },
   },
@@ -78,6 +79,20 @@ const TOOLS = [
     description: 'Report the current boot-session key tag and when it was generated. The key rotates automatically when the machine reboots.',
     inputSchema: { type: 'object', properties: {} },
   },
+  {
+    name: 'ingest_attachment',
+    description:
+      'Read a photo or paper/PDF from a local path and return its catalog entry: type, size, SHA-256, image dimensions, or (for PDFs) title + page count + text excerpt. Use to fold attachments into a session handoff.',
+    inputSchema: {
+      type: 'object',
+      required: ['path'],
+      properties: {
+        path: { type: 'string', description: 'Absolute path to the file.' },
+        caption: { type: 'string', description: 'Optional alt text for an image.' },
+        embed: { type: 'boolean', default: false, description: 'Base64-embed the bytes (inflates output).' },
+      },
+    },
+  },
 ];
 
 // ---- helpers ---------------------------------------------------------------
@@ -112,6 +127,7 @@ function callTool(name, args = {}) {
     case 'transfer_session': {
       const cap = s2s.detectAndLoad(args.text, args.from);
       s2s.compress(cap, { summarizer: s2s.heuristicSummary });
+      if (Array.isArray(args.attachments) && args.attachments.length) s2s.attachToCapsule(cap, args.attachments, {});
       if (args.mask !== false) s2s.maskCapsule(cap);
       s2s.finalize(cap);
       cap.include_full_transcript = !!args.full;
@@ -119,7 +135,7 @@ function callTool(name, args = {}) {
       const c = cap.context;
       return textResult({
         primer,
-        carried_over: { decisions: c.decisions.length, open_threads: c.open_threads.length, facts: c.key_facts.length, artifacts: cap.artifacts.length },
+        carried_over: { decisions: c.decisions.length, open_threads: c.open_threads.length, facts: c.key_facts.length, artifacts: cap.artifacts.length, attachments: cap.attachments.length },
       });
     }
     case 'seal_session': {
@@ -142,6 +158,8 @@ function callTool(name, args = {}) {
       return textResult(s2s.decode(args.token.trim()));
     case 'boot_key_status':
       return textResult(s2s.bootkey.status());
+    case 'ingest_attachment':
+      return textResult(s2s.ingestFile(args.path, { caption: args.caption, embed: !!args.embed }));
     default:
       throw new Error(`unknown tool: ${name}`);
   }

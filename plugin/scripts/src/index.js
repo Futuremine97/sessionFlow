@@ -11,6 +11,7 @@ const { mergeCapsules } = require('./merge');
 const { diffCapsules, formatDiff } = require('./diff');
 const { encode, decode, seal, unseal, tokenType, tokenInfo } = require('./seal');
 const bootkey = require('./bootkey');
+const { ingestFile, attachToCapsule } = require('./attach');
 
 // Seal using the current boot-session key (auto-generated, rotates on reboot).
 function sealWithBootKey(capsuleJSON) {
@@ -66,5 +67,7 @@ module.exports = {
   bootkey,
   sealWithBootKey,
   unsealWithBootKey,
+  ingestFile,
+  attachToCapsule,
   transfer,
 };

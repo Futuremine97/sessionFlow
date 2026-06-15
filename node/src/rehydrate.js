@@ -55,6 +55,20 @@ function buildPrimer(cap, target = 'generic', includeFull = false) {
     cap.artifacts.forEach((a) => L.push(`- [${a.status}] ${a.path} (${a.kind})${a.summary ? ` — ${a.summary}` : ''}`));
     L.push('');
   }
+  if ((cap.attachments || []).length) {
+    L.push('## Attachments (photos / papers)');
+    cap.attachments.forEach((a) => {
+      const dim = a.meta && a.meta.width ? `, ${a.meta.width}×${a.meta.height}` : '';
+      const pages = a.meta && a.meta.pages ? `, ${a.meta.pages}p` : '';
+      L.push(`- [${a.kind}] ${a.name} (${a.mime}${dim}${pages}, ${Math.round(a.bytes / 1024)}KB)`);
+      if (a.title) L.push(`    title: ${a.title}`);
+      if (a.caption) L.push(`    caption: ${a.caption}`);
+      if (a.text_excerpt) L.push(`    excerpt: ${a.text_excerpt.replace(/\n/g, ' ').slice(0, 500)}`);
+      if (a.meta && a.meta.note) L.push(`    note: ${a.meta.note}`);
+    });
+    L.push('');
+  }
+
   if ((c.open_threads || []).length) {
     L.push('## Open threads — pick up here');
     c.open_threads.forEach((o) => L.push(`- ${o}`));
