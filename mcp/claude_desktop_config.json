@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "session-to-session": {
+      "command": "node",
+      "args": ["/Users/sunghoon/Documents/session_to_session/node/bin/s2s-mcp.js"]
+    }
+  }
+}

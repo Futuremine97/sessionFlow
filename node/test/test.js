@@ -176,6 +176,46 @@ async function run() {
     assert.ok(!Buffer.from(token, 'base64url').toString('latin1').includes('Friday'));
   });
 
+  await test('seal: raw boot key roundtrip + boot tag embedded', () => {
+    const key = require('crypto').randomBytes(32);
+    const json = s2s.toJSON(s2s.pasteLoad('You: boot keyed secret here'));
+    const { token } = s2s.seal(json, key, { bootTag: 'deadbeefcafebabe' });
+    const info = s2s.tokenInfo(token);
+    assert.strictEqual(info.mode, 'bootkey');
+    assert.strictEqual(info.boot_tag, 'deadbeefcafebabe');
+    assert.strictEqual(s2s.unseal(token, key), json);
+  });
+
+  await test('boot token from another session is rejected', () => {
+    const key = Buffer.alloc(32, 7);
+    const { token } = s2s.seal(s2s.toJSON(s2s.pasteLoad('You: hi there')), key, { bootTag: 'aaaaaaaaaaaaaaaa' });
+    // current boot tag won't be aaaa..., so unsealWithBootKey should refuse
+    assert.throws(() => s2s.unsealWithBootKey(token), /previous boot session/);
+  });
+
+  await test('bootkey.currentKey: stable within boot, 32 bytes', () => {
+    const a = s2s.bootkey.currentKey();
+    const b = s2s.bootkey.currentKey();
+    assert.strictEqual(a.key.length, 32);
+    assert.ok(a.key.equals(b.key), 'same key within a boot session');
+    assert.strictEqual(a.bootTag, b.bootTag);
+  });
+
+  await test('passphrase token requires passphrase, not boot key', () => {
+    const { token } = s2s.seal(s2s.toJSON(s2s.pasteLoad('You: passphrase mode test')), 'pw');
+    assert.strictEqual(s2s.tokenInfo(token).mode, 'passphrase');
+  });
+
+  await test('MCP: tools/list + seal_session/unseal_session roundtrip', () => {
+    const mcp = require('../src/mcp');
+    assert.ok(mcp.TOOLS.find((t) => t.name === 'seal_session'));
+    const sealed = mcp.callTool('seal_session', { text: 'You: mcp secret launch Friday' });
+    const out = JSON.parse(sealed.content[0].text);
+    assert.strictEqual(out.mode, 'bootkey');
+    const unsealed = mcp.callTool('unseal_session', { token: out.token, to: 'claude' });
+    assert.ok(unsealed.content[0].text.includes('<handoff>'));
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 }

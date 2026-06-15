@@ -79,15 +79,36 @@ ChatGPT엔 SKILL.md 체계가 없어 **Custom GPT + Action**으로 동등 기능
 cd node && S2S_API_KEY=mykey node src/server.js   # 백엔드
 ```
 
+## 4) MCP 서버 (Claude Desktop / Cowork)
+
+세션 이동 기능을 MCP 도구로 노출(`transfer_session`, `seal_session`, `unseal_session`,
+`encode/decode_session`, `boot_key_status`). 의존성 0, stdio(JSON-RPC 2.0).
+
+```json
+{ "mcpServers": { "session-to-session": {
+  "command": "node",
+  "args": ["/Users/sunghoon/Documents/session_to_session/node/bin/s2s-mcp.js"] } } }
+```
+
+`claude_desktop_config.json`에 위를 병합하면 앱 재시작 후 도구가 뜹니다. 플러그인에도
+`plugin/.mcp.json`이 포함돼 플러그인 설치 시 함께 등록됩니다. 자세히는
+[`mcp/README.md`](./mcp/README.md).
+
+**비밀키 = 부팅 세션 키(자동 태깅·재부팅시 재생성).** `seal_session`은 기본적으로 맥
+부팅시각에서 유도한 boot tag로 식별되는 키를 씁니다. 부팅 세션 내 첫 사용 시 32바이트 키를
+생성(`~/.s2s/keys/<boottag>.key`, 0600)해 공유하고, 재부팅하면 boot tag가 바뀌어 새 키가
+자동 생성+이전 키 자동 삭제됩니다(이전 토큰 복호 불가). 영구 보관은 `passphrase` 옵션 사용.
+
 ## 전체 구조
 
 ```
 session_to_session/
 ├── s2s/               # 원본 Python 패키지 (v0.2, 참조 구현)
 ├── extension/         # 브라우저 확장 (MV3)
-├── node/              # ★ Node 코어 + npm CLI + 서버 + openapi.yaml
-├── plugin/            # ★ Claude 마켓플레이스 플러그인 (코어 번들)
+├── node/              # ★ Node 코어 + npm CLI + 서버 + MCP + openapi.yaml
+├── plugin/            # ★ Claude 마켓플레이스 플러그인 (코어 번들 + .mcp.json)
 ├── chatgpt-gpt/       # ★ ChatGPT Custom GPT 지침 + 등록 가이드
+├── mcp/               # ★ MCP 등록 설정 + 가이드
 ├── DESIGN.md          # 설계 문서
 └── DISTRIBUTION.md    # (이 문서) 배포 가이드
 ```

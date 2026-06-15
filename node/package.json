@@ -19,7 +19,8 @@
   "type": "commonjs",
   "main": "src/index.js",
   "bin": {
-    "s2s": "bin/s2s.js"
+    "s2s": "bin/s2s.js",
+    "s2s-mcp": "bin/s2s-mcp.js"
   },
   "files": [
     "bin/",

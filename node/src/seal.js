@@ -25,7 +25,9 @@ const zlib = require('zlib');
 const MAGIC = Buffer.from('S2S'); // 3 bytes
 const TYPE_COMPRESSED = 0x43; // 'C'
 const TYPE_ENCRYPTED = 0x45; // 'E'
-const VERSION = 1;
+const VERSION = 1; // compressed token version
+const ENC_VERSION = 2; // encrypted token version (adds flags + boot tag)
+const FLAG_BOOTKEY = 0x01; // raw key derived from the boot session, not a passphrase
 
 // scrypt parameters (stored in the token so future params stay readable)
 const KDF = { N: 1 << 15, r: 8, p: 1, keylen: 32, maxmem: 128 * 1024 * 1024 };
@@ -41,6 +43,15 @@ function deriveKey(passphrase, salt, params = KDF) {
     p: params.p,
     maxmem: params.maxmem,
   });
+}
+
+// secret may be a passphrase (string) or a raw 32-byte key (Buffer).
+function resolveKey(secret, salt, params = KDF) {
+  if (Buffer.isBuffer(secret)) {
+    if (secret.length !== 32) throw new Error('raw key must be 32 bytes');
+    return secret;
+  }
+  return deriveKey(secret, salt, params);
 }
 
 // ---- compression-only token ------------------------------------------------
@@ -71,12 +82,14 @@ function decode(token) {
 }
 
 // ---- encrypted (sealed) token ---------------------------------------------
-// layout: MAGIC(3) | TYPE_ENCRYPTED(1) | VERSION(1)
-//       | N(4 BE) | r(1) | p(1) | salt(16) | iv(12) | tag(16)
-//       | sha256(plain)(32) [encrypted with the data]  -> stored inside plaintext
-//       | ciphertext
-function seal(capsuleJSON, passphrase) {
-  if (!passphrase) throw new Error('passphrase required to seal');
+// v2 layout: MAGIC(3) | TYPE_ENCRYPTED(1) | ENC_VERSION(1) | FLAGS(1)
+//          | N(4 BE) | r(1) | p(1) | bootTag(8) | salt(16) | iv(12) | tag(16)
+//          | ciphertext( sha256(plain)(32) || deflate(plain) )
+//
+// secret: passphrase string (scrypt) OR raw 32-byte key Buffer (boot key).
+// opts.bootTag: 16-hex string identifying the boot session (boot-key mode).
+function seal(capsuleJSON, secret, opts = {}) {
+  if (!secret) throw new Error('secret required to seal (passphrase or raw key)');
   const plain = Buffer.from(capsuleJSON, 'utf8');
   const compressed = zlib.deflateRawSync(plain, { level: 9 });
 
@@ -84,54 +97,74 @@ function seal(capsuleJSON, passphrase) {
   const digest = sha256(plain); // 32 bytes
   const inner = Buffer.concat([digest, compressed]);
 
-  const salt = crypto.randomBytes(16);
+  const isRaw = Buffer.isBuffer(secret);
+  const salt = isRaw ? Buffer.alloc(16) : crypto.randomBytes(16);
   const iv = crypto.randomBytes(12);
-  const key = deriveKey(passphrase, salt);
+  const key = resolveKey(secret, salt);
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
   const ciphertext = Buffer.concat([cipher.update(inner), cipher.final()]);
   const tag = cipher.getAuthTag(); // 16 bytes (128-bit MAC)
 
-  const header = Buffer.alloc(8);
+  const flags = isRaw ? FLAG_BOOTKEY : 0;
+  const bootTagBuf = Buffer.alloc(8);
+  if (opts.bootTag) Buffer.from(String(opts.bootTag), 'hex').copy(bootTagBuf, 0, 0, 8);
+
+  const header = Buffer.alloc(6);
   header.writeUInt32BE(KDF.N, 0);
   header.writeUInt8(KDF.r, 4);
   header.writeUInt8(KDF.p, 5);
-  // bytes 6,7 reserved
 
-  const buf = Buffer.concat([MAGIC, Buffer.from([TYPE_ENCRYPTED, VERSION]), header, salt, iv, tag, ciphertext]);
+  const buf = Buffer.concat([
+    MAGIC,
+    Buffer.from([TYPE_ENCRYPTED, ENC_VERSION, flags]),
+    header,
+    bootTagBuf,
+    salt,
+    iv,
+    tag,
+    ciphertext,
+  ]);
   return {
     token: buf.toString('base64url'),
     rawBytes: plain.length,
     encodedBytes: ciphertext.length,
     ratio: +(ciphertext.length / plain.length).toFixed(3),
+    bootTag: opts.bootTag || null,
+    mode: isRaw ? 'bootkey' : 'passphrase',
   };
 }
 
-function unseal(token, passphrase) {
-  if (!passphrase) throw new Error('passphrase required to unseal');
+function unseal(token, secret) {
+  if (!secret) throw new Error('secret required to unseal (passphrase or raw key)');
   const buf = Buffer.from(token, 'base64url');
   if (!buf.subarray(0, 3).equals(MAGIC)) throw new Error('not an s2s token (bad magic)');
   const type = buf[3];
   if (type === TYPE_COMPRESSED) throw new Error('this token is not encrypted; use decode (no passphrase)');
   if (type !== TYPE_ENCRYPTED) throw new Error('unknown token type');
+  const ver = buf[4];
+  if (ver !== ENC_VERSION) throw new Error(`unsupported encrypted token version ${ver}`);
 
   let o = 5;
+  const flags = buf.readUInt8(o); o += 1;
   const N = buf.readUInt32BE(o); o += 4;
   const r = buf.readUInt8(o); o += 1;
   const p = buf.readUInt8(o); o += 1;
-  o += 2; // reserved
+  o += 8; // bootTag (informational; read via tokenInfo)
   const salt = buf.subarray(o, o + 16); o += 16;
   const iv = buf.subarray(o, o + 12); o += 12;
   const tag = buf.subarray(o, o + 16); o += 16;
   const ciphertext = buf.subarray(o);
 
-  const key = deriveKey(passphrase, salt, { N, r, p, keylen: 32, maxmem: KDF.maxmem });
+  if (flags & FLAG_BOOTKEY && !Buffer.isBuffer(secret)) throw new Error('this token uses a boot-session key; provide the raw key, not a passphrase');
+
+  const key = resolveKey(secret, salt, { N, r, p, keylen: 32, maxmem: KDF.maxmem });
   const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
   decipher.setAuthTag(tag);
   let inner;
   try {
     inner = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
   } catch (e) {
-    throw new Error('decryption failed — wrong passphrase or tampered token');
+    throw new Error('decryption failed — wrong key/passphrase or tampered token');
   }
   const digest = inner.subarray(0, 32);
   const compressed = inner.subarray(32);
@@ -151,4 +184,23 @@ function tokenType(token) {
   }
 }
 
-module.exports = { encode, decode, seal, unseal, tokenType, sha256, KDF };
+// Detailed token metadata without needing the key.
+function tokenInfo(token) {
+  const buf = Buffer.from(token, 'base64url');
+  if (!buf.subarray(0, 3).equals(MAGIC)) return { type: null };
+  if (buf[3] === TYPE_COMPRESSED) return { type: 'compressed', version: buf[4], chars: token.length };
+  if (buf[3] === TYPE_ENCRYPTED) {
+    const flags = buf[5];
+    const bootTag = buf.subarray(12, 20).toString('hex');
+    return {
+      type: 'encrypted',
+      version: buf[4],
+      mode: flags & FLAG_BOOTKEY ? 'bootkey' : 'passphrase',
+      boot_tag: flags & FLAG_BOOTKEY ? bootTag : null,
+      chars: token.length,
+    };
+  }
+  return { type: null };
+}
+
+module.exports = { encode, decode, seal, unseal, tokenType, tokenInfo, sha256, KDF };

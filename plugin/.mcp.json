@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "session-to-session": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/s2s-mcp.js"]
+    }
+  }
+}

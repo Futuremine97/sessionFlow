@@ -25,7 +25,7 @@ function parseFlags(argv) {
       flags.o = argv[++i]; // short alias for --output
     } else if (a.startsWith('--')) {
       const key = a.slice(2);
-      if (['full', 'offline', 'mask', 'json', 'seal', 'encode'].includes(key)) flags[key] = true;
+      if (['full', 'offline', 'mask', 'json', 'seal', 'encode', 'boot'].includes(key)) flags[key] = true;
       else flags[key] = argv[++i];
     } else pos.push(a);
   }
@@ -69,8 +69,10 @@ Usage:
   s2s encode   <capsule> [-o file]                          # compress -> base64url token
   s2s decode   <token>   [-o file]                          # token -> capsule.json
   s2s seal     <capsule> --pass <phrase> [-o file]          # AES-256-GCM encrypt -> token
-  s2s unseal   <token>   --pass <phrase> [--to y] [-o file] # decrypt -> capsule/primer
-  s2s token-info <token>                                    # compressed | encrypted?
+  s2s seal     <capsule> --boot [-o file]                   # encrypt w/ boot-session key
+  s2s unseal   <token>   [--pass <phrase>] [--to y] [-o f]  # decrypt -> capsule/primer
+  s2s bootkey                                               # show boot key tag/status
+  s2s token-info <token>                                    # compressed | encrypted (mode)?
   s2s transfer <export>  --seal --pass <phrase>             # export -> sealed token
   s2s transfer <export>  --encode                           # export -> compressed token
 
@@ -90,7 +92,9 @@ async function main() {
       if (flags.seal || flags.encode) {
         // emit a compact (optionally encrypted) token instead of a primer
         const json = s2s.toJSON(cap);
-        const res = flags.seal ? s2s.seal(json, resolvePass(flags)) : s2s.encode(json);
+        let res;
+        if (flags.seal) res = flags.boot ? s2s.sealWithBootKey(json) : s2s.seal(json, resolvePass(flags));
+        else res = s2s.encode(json);
         out(res.token, flags.o);
         process.stderr.write(`${flags.seal ? 'sealed' : 'encoded'}: ${res.rawBytes}B -> ${res.encodedBytes}B (ratio ${res.ratio})\n`);
       } else {
@@ -113,14 +117,15 @@ async function main() {
     }
     case 'seal': {
       const json = s2s.toJSON(s2s.fromJSON(readInput(pos[0])));
-      const res = s2s.seal(json, resolvePass(flags));
+      const res = flags.boot ? s2s.sealWithBootKey(json) : s2s.seal(json, resolvePass(flags));
       out(res.token, flags.o);
-      process.stderr.write(`sealed (AES-256-GCM): ${res.rawBytes}B -> ${res.encodedBytes}B (ratio ${res.ratio})\n`);
+      process.stderr.write(`sealed (AES-256-GCM, ${res.mode}${res.bootTag ? ' boot:' + res.bootTag : ''}): ${res.rawBytes}B -> ${res.encodedBytes}B (ratio ${res.ratio})\n`);
       break;
     }
     case 'unseal': {
       const token = readInput(pos[0]).trim();
-      const json = s2s.unseal(token, resolvePass(flags));
+      const info = s2s.tokenInfo(token);
+      const json = info.mode === 'bootkey' ? s2s.unsealWithBootKey(token) : s2s.unseal(token, resolvePass(flags));
       if (flags.to) {
         const cap = s2s.fromJSON(json);
         cap.include_full_transcript = !!flags.full;
@@ -130,10 +135,14 @@ async function main() {
       }
       break;
     }
+    case 'bootkey': {
+      const st = s2s.bootkey.status();
+      process.stdout.write(JSON.stringify(st, null, 2) + '\n');
+      break;
+    }
     case 'token-info': {
       const token = readInput(pos[0]).trim();
-      const t = s2s.tokenType(token);
-      process.stdout.write(`type: ${t || 'unknown (not an s2s token)'}\nchars: ${token.length}\n`);
+      process.stdout.write(JSON.stringify(s2s.tokenInfo(token), null, 2) + '\n');
       break;
     }
     case 'paste': {
